@@ -93,7 +93,8 @@ int value_init_date(Value *value, const char *v) {
   sscanf(v, "%d-%d-%d", &y, &m, &d);//not check return value eq 3, lex guarantee
   // 对读取的日期做合法性校验
   bool b = check_date(y,m,d);
-  if(!b) return -1;
+  //  if(!b) return -1;
+  if(b) return -1;
   // TODO 将日期转换成整数
   int date2int = y*10000 + m*100 + d;
   // TODO 将value 的 data 属性修改为转换后的日期
