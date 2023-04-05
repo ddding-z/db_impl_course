@@ -265,7 +265,7 @@ void TupleRecordConverter::add_record(const char *record)
         int d = value % 100;
         sprintf(s, "%d-%02d-%02d", y, m, d);
         // TODO 将字符串添加到tuple中
-        tuple.add(s, len(s));
+        tuple.add(s, strlen(s));
       }break;
       default: {
         LOG_PANIC("Unsupported field type. type=%d", field_meta->type());
