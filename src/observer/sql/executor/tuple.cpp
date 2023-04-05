@@ -259,7 +259,7 @@ void TupleRecordConverter::add_record(const char *record)
         // TODO 从record中读取存储的日期
         int value = *(int *)(record + field_meta->offset());
         // TODO 将日期转换为满足输出格式的字符串，注意这里月份和天数，不足两位时需要填充0
-        char* s = *(char *)malloc(1000);
+        char* s = (char *)malloc(1000);
         int y = value / 10000;
         int m = (value % 10000) / 100;
         int d = value % 100;
