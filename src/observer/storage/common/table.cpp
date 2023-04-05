@@ -121,18 +121,30 @@ RC Table::create(
   return rc;
 }
 
-RC Table::destroy(const char* dir) {
+RC Table::destroy(const char *path, const char *name, const char *base_dir) {
   //刷新所有脏页
   RC rc = sync();
   if(rc != RC::SUCCESS) return rc;
-
+  
   //TODO 删除描述表元数据的文件
-
+  if(unlink(path) == -1){
+    return RC::GENERIC_ERROR;
+  }
   //TODO 删除表数据文件
-
+  std::string data_file = table_data_file(base_dir, name);
+  if (unlink(data_file.c_str()) == -1){
+    return RC::GENERIC_ERROR;
+  }
   //TODO 清理所有的索引相关文件数据与索引元数据
-
-  return RC::GENERIC_ERROR;
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    const IndexMeta *index_meta = table_meta_.index(i);
+    std::string index_file = table_index_file(base_dir, table_meta_.name(), index_meta->name());
+    if (unlink(index_file.c_str()) == -1){
+      return RC::GENERIC_ERROR;
+    }
+  }
+  return RC::SUCCESS;
 }
 
 
