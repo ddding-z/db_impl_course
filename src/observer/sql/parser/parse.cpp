@@ -61,14 +61,33 @@ void value_init_string(Value *value, const char *v)
 bool check_date(int y, int m, int d)
 {
   // TODO 根据 y:year,m:month,d:day 校验日期是否合法
+  int monthDays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+  if ( y < 1970 || y > 2038){
+    return 1;
+  }
+  if ( m < 1 || m > 12 ){
+    return 1;
+  }
+  if( (y == 2038) && m > 2){
+    return 1;
+  }
+  if ( m == 2 ){
+    if ( (y % 400 == 0) || (y % 100 != 0 && y % 4 == 0)){
+      monthDays[1] = 29;
+    }
+  }
+  if ( d < 1 || d > monthDays[m - 1] ){
+    return 1;
+  }
   // TODO 合法 return 0
   // TODO 不合法 return 1
-  return 1;
+  return 0;
 }
 
 int value_init_date(Value *value, const char *v) {
   // TODO 将 value 的 type 属性修改为日期属性:DATES
-
+  value->type = DATES;
   // 从lex的解析中读取 year,month,day
   int y,m,d;
   sscanf(v, "%d-%d-%d", &y, &m, &d);//not check return value eq 3, lex guarantee
@@ -76,9 +95,10 @@ int value_init_date(Value *value, const char *v) {
   bool b = check_date(y,m,d);
   if(!b) return -1;
   // TODO 将日期转换成整数
-
+  int date2int = y*10000 + m*100 + d;
   // TODO 将value 的 data 属性修改为转换后的日期
-
+  value->data = malloc(sizeof(date2int));
+  memcpy(value->data, &date2int, sizeof(date2int));
   return 0;
 }
 
