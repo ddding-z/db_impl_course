@@ -36,127 +36,146 @@ namespace cache {
  * 
  * 上层的BPManager类会使用到这个lru_cache的实现
  */
-    template<typename key_t, typename value_t, typename hashfunc>
-    class lru_cache {
-    public:
-        typedef typename std::pair<key_t, value_t> key_value_pair_t;
-        typedef typename std::list<key_value_pair_t>::iterator list_iterator_t;
+  template <typename key_t, typename value_t, typename hashfunc>
+  class lru_cache
+  {
+  public:
+    typedef typename std::pair<key_t, value_t> key_value_pair_t;
+    typedef typename std::list<key_value_pair_t>::iterator list_iterator_t;
 
-        lru_cache(size_t max_size) :
-                _max_size(max_size) {
+    lru_cache(size_t max_size) : _max_size(max_size)
+    {
+    }
+
+    RC put(const key_t &key, const value_t &value)
+    {
+      /**
+       * @todo
+       * 1. 如果key在lru cache中存在，则需要用新的key-value替换_cache_items_list和_cache_items_map中旧的
+       *    然后返回RC::SUCCESS
+       * 2. 如果key不在lru cache中，则
+       *    2.1 如果lru cache已经达到最大容量，则返回RC::BUFFERPOOL_NOBUF
+       *    2.2 如果没有达到最大容量，则在_cache_items_list和_cache_items_map中插入新的
+       */
+      key_value_pair_t kv(key, value);
+      if (exists(key))
+      {
+        auto t = _cache_items_map[key];
+        _cache_items_list.erase(t);
+        _cache_items_list.push_front(kv);
+      }
+      else
+      {
+        if (size() == _max_size)
+          return RC::BUFFERPOOL_NOBUF;
+        else
+        {
+          _cache_items_list.push_front(kv);
+          _cache_items_map[key] = _cache_items_list.begin();
         }
+      }
+      return RC::SUCCESS;
+    }
 
-        RC put(const key_t& key, const value_t& value) {
-          /** 
-           * @todo 
-           * 1. 如果key在lru cache中存在，则需要用新的key-value替换_cache_items_list和_cache_items_map中旧的
-           *    然后返回RC::SUCCESS
-           * 2. 如果key不在lru cache中，则
-           *    2.1 如果lru cache已经达到最大容量，则返回RC::BUFFERPOOL_NOBUF
-           *    2.2 如果没有达到最大容量，则在_cache_items_list和_cache_items_map中插入新的
-           */
-          key_value_pair_t kv(key, value);
-          if (exists(key)){
-            auto t =_cache_items_map[key];
-            _cache_items_list.erase(t);
-            _cache_items_list.push_front(kv);
-          }
-          else{
-            if (size() == _max_size) return RC::BUFFERPOOL_NOBUF;
-            else {
-              _cache_items_list.push_front(kv);
-              _cache_items_map[key] = _cache_items_list.begin();
-            }
-          }
-          return RC::SUCCESS;
-        }
+    RC get(const key_t &key, value_t *res_value)
+    {
+      /**
+       * @todo
+       * 1. 如果页不存在，返回RC::NOTFOUND
+       * 2. 如果页存在，将key对应的key-value对移动到_cache_items_list的头部，并更新_cache_items_map
+       *    将res_value设置为结果value。返回RC::SUCCESS
+       */
+      if (!exists(key))
+        return RC::NOTFOUND;
+      else
+      {
+        key_value_pair_t kv(key, res_value);
+        auto t = _cache_items_map[key];
+        _cache_items_list.erase(t);
+        _cache_items_list.push_front(kv);
+        _cache_items_map[key] = _cache_items_list.begin();
+      }
+      return RC::SUCCESS;
+    }
 
-        RC get(const key_t& key, value_t* res_value) {
-          /** 
-           * @todo
-           * 1. 如果页不存在，返回RC::NOTFOUND
-           * 2. 如果页存在，将key对应的key-value对移动到_cache_items_list的头部，并更新_cache_items_map
-           *    将res_value设置为结果value。返回RC::SUCCESS
-           */
-          if (!exists())  return RC::NOTFOUND;
-          else{
-            key_value_pair_t kv(key, res_value);
-            auto t =_cache_items_map[key];
-            _cache_items_list.erase(t);
-            _cache_items_list.push_front(kv);
-            _cache_items_map[key] = _cache_items_list.begin();
-          }
-          return RC::SUCCESS;
-        }
+    bool exists(const key_t &key) const
+    {
+      /**
+       * @todo
+       * key存在，返回 true
+       * key不存在，返回 false
+       */
+      bool flag;
+      _cache_items_map.find(key) == _cache_items_list.end() ? flag = false : flag = true;
+      return flag;
+    }
 
-        bool exists(const key_t& key) const {
+    size_t size() const
+    {
+      /**
+       * @todo
+       * 返回LRU cache size
+       */
+      return _cache_items_list.size();
+    }
+
+    RC getVictim(key_t *vic_key, bool (*check)(const key_value_pair_t &kv, void *ctx), void *ctx) const
+    {
+
+      for (auto it = _cache_items_list.rbegin(); it != _cache_items_list.rend(); it++)
+      {
+        if (check(*it, ctx))
+        {
           /**
            * @todo
-           * key存在，返回 true
-           * key不存在，返回 false
+           * 1. vic_key是被驱逐的那个项目的对应key，
+           * 被驱逐的项目应该满足check条件，check条件一般是: frame的Pin count为0.
+           * 2. 返回 RC::SUCCESS
            */
-          _cache_items_map.find(key) == _cache_items_list.end() ? return false : return true;
+          *vic_key = (*it).first;
+          return RC::SUCCESS
         }
+      }
+      return RC::NOTFOUND;
+    }
 
-        size_t size() const {
-          /** 
-           * @todo
-           * 返回LRU cache size
-           */
-          return _cache_items_list.size();
+    RC victim(key_t old_key, key_t new_key)
+    {
+      /**
+       * @todo
+       * 1. 如果old_key不存在，返回RC::NOTFOUND
+       * 2. 将old_key删除，并将new_key和old_key对应的value插入到lrucache中，更新_cache_items_list和_cache_items_map
+       *    调用者必须保证old_key是存在的。返回RC::SUCCESS
+       *
+       * 比如old_key是4，它的value是40, new_key是5，则删除{4, 40}，建立{5, 40}
+       */
+      if (!exists(old_key))
+      {
+        return RC::NOTFOUND;
+      }
+      else
+      {
+        auto t = _cache_items_map[old_key];
+        auto kv = *t;
+        kv.first = new_key;
+        _cache_items_list.erase(t);
+        if (size() == _max_size)
+          return RC::BUFFERPOOL_NOBUF;
+        else
+        {
+          _cache_items_list.push_front(kv);
+          _cache_items_map[key] = _cache_items_list.begin();
         }
+      }
+      return RC::SUCCESS;
+    }
 
-        RC getVictim(key_t *vic_key, bool (*check)(const key_value_pair_t& kv, void *ctx), void *ctx) const {
-          
-          for (auto it = _cache_items_list.rbegin(); it != _cache_items_list.rend(); it++) {
-            if (check(*it, ctx)) {
-              /**
-               * @todo
-               * 1. vic_key是被驱逐的那个项目的对应key，
-               * 被驱逐的项目应该满足check条件，check条件一般是: frame的Pin count为0.
-               * 2. 返回 RC::SUCCESS
-               */
-              vic_key = (*it).first;
-              break;
-            }
-          }
-          return RC::NOTFOUND;
-        }
-
-        RC victim(key_t old_key, key_t new_key) {
-          /** 
-           * @todo
-           * 1. 如果old_key不存在，返回RC::NOTFOUND
-           * 2. 将old_key删除，并将new_key和old_key对应的value插入到lrucache中，更新_cache_items_list和_cache_items_map
-           *    调用者必须保证old_key是存在的。返回RC::SUCCESS
-           * 
-           * 比如old_key是4，它的value是40, new_key是5，则删除{4, 40}，建立{5, 40}
-           */
-          if (!exists(old_key)){
-            return RC::NOTFOUND;
-          }
-          else{
-            auto t = _cache_items_map[old_key];
-            auto kv = *t;
-            kv.first = new_key;
-            _cache_items_list.erase(t);
-            if (size() == _max_size) return RC::BUFFERPOOL_NOBUF;
-            else {
-              _cache_items_list.push_front(kv);
-              _cache_items_map[key] = _cache_items_list.begin();
-            }
-          }
-          return RC::SUCCESS;
-        }
-
-    public:
-        std::list<key_value_pair_t> _cache_items_list;
-        std::unordered_map<key_t, list_iterator_t, hashfunc> _cache_items_map;
-        size_t _max_size;
-    };
+  public:
+    std::list<key_value_pair_t> _cache_items_list;
+    std::unordered_map<key_t, list_iterator_t, hashfunc> _cache_items_map;
+    size_t _max_size;
+  };
 
 } // namespace cache
 
-
-
-#endif //MINIDB_LRUCACHE_HPP
+#endif // MINIDB_LRUCACHE_HPP
