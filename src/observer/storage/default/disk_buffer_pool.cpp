@@ -60,7 +60,7 @@ Frame *BPManager::alloc(int file_desc, PageNum page_num) {
   else{
     BufferTag victim = lrucache.getVictim(&victim, not_pinned, (void*)(this));
     lrucache.victim(victim, new_buffer_tag);
-    disk_buffer_pool->flush_block()
+    disk_buffer_pool->flush_block();
   }
   
   return nullptr;

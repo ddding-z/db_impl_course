@@ -105,8 +105,10 @@ namespace cache {
        * key存在，返回 true
        * key不存在，返回 false
        */
-      bool flag;
-      _cache_items_map.find(key) == _cache_items_list.end() ? flag = false : flag = true;
+      bool flag = false;
+      if (_cache_items_map.find(key) != _cache_items_list.end()){
+        flag = true;
+      }
       return flag;
     }
 
@@ -133,7 +135,7 @@ namespace cache {
            * 2. 返回 RC::SUCCESS
            */
           *vic_key = (*it).first;
-          return RC::SUCCESS
+          return RC::SUCCESS;
         }
       }
       return RC::NOTFOUND;
@@ -164,7 +166,7 @@ namespace cache {
         else
         {
           _cache_items_list.push_front(kv);
-          _cache_items_map[key] = _cache_items_list.begin();
+          _cache_items_map[new_key] = _cache_items_list.begin();
         }
       }
       return RC::SUCCESS;
