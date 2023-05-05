@@ -53,7 +53,7 @@ Frame *BPManager::alloc(int file_desc, PageNum page_num) {
    * 提示：调用lrucache.victim(victim, new_buffer_tag) 来将vitim页给替换了。
    */
   BufferTag new_buffer_tag = {file_desc, page_num};
-  if (lrucache.size() != size){
+  if (lrucache.size() < size){
     for (int i = 0; i < size; i++)
     {
       if (!allocated[i])
@@ -69,7 +69,7 @@ Frame *BPManager::alloc(int file_desc, PageNum page_num) {
     auto ret = lrucache.getVictim(&victim, not_pinned, (void*)(this));
     if (ret != RC::SUCCESS) return nullptr;
     int idx;
-    lrucache.get(victim, &idx)
+    lrucache.get(victim, &idx);
     disk_buffer_pool->flush_block(&frame[idx]);
     lrucache.victim(victim, new_buffer_tag);
     return &(frame[idx]);
