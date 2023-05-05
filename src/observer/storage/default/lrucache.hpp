@@ -60,9 +60,9 @@ namespace cache {
       key_value_pair_t kv(key, value);
       if (exists(key))
       {
-        auto t = _cache_items_map[key];
-        _cache_items_list.erase(t);
+        _cache_items_list.erase(_cache_items_map[key]);
         _cache_items_list.push_front(kv);
+        _cache_items_map[key] = _cache_items_list.begin();
       }
       else
       {
@@ -89,11 +89,12 @@ namespace cache {
         return RC::NOTFOUND;
       else
       {
-        key_value_pair_t kv(key, res_value);
-        auto t = _cache_items_map[key];
-        _cache_items_list.erase(t);
+        value_t value = _cache_items_map[key]->second;
+        key_value_pair_t kv(key, value);
+        _cache_items_list.erase(_cache_items_map[key]);
         _cache_items_list.push_front(kv);
         _cache_items_map[key] = _cache_items_list.begin();
+        *res_value = value;
       }
       return RC::SUCCESS;
     }
@@ -105,11 +106,7 @@ namespace cache {
        * key存在，返回 true
        * key不存在，返回 false
        */
-      bool flag = false;
-      if (_cache_items_map.find(key) != _cache_items_list.end()){
-        flag = true;
-      }
-      return flag;
+      return _cache_items_map.find(key) != _cache_items_map.end();
     }
 
     size_t size() const
@@ -134,7 +131,7 @@ namespace cache {
            * 被驱逐的项目应该满足check条件，check条件一般是: frame的Pin count为0.
            * 2. 返回 RC::SUCCESS
            */
-          *vic_key = (*it).first;
+          *vic_key = it->first;
           return RC::SUCCESS;
         }
       }
@@ -157,17 +154,12 @@ namespace cache {
       }
       else
       {
-        auto t = _cache_items_map[old_key];
-        auto kv = *t;
-        kv.first = new_key;
-        _cache_items_list.erase(t);
-        if (size() == _max_size)
-          return RC::BUFFERPOOL_NOBUF;
-        else
-        {
-          _cache_items_list.push_front(kv);
-          _cache_items_map[new_key] = _cache_items_list.begin();
-        }
+        value_t old_value = _cache_items_map[old_key]->second;
+        _cache_items_list.erase(_cache_items_map[old_key]);
+        _cache_items_map.erase(old_key);
+        key_value_pair_t kv(new_key, old_value);
+        _cache_items_list.push_front(kv);
+        _cache_items_map[new_key] = _cache_items_list.begin();
       }
       return RC::SUCCESS;
     }
